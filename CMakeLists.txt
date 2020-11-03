@@ -39,16 +39,9 @@ include_directories(
   ${GTSAM_INCLUDE_DIRS}
 )
 
-link_directories(
-  include
-  ${PCL_LIBRARY_DIRS}
-  ${CERES_LIBRARY_DIRS}
-)
-
-
 catkin_package(
   CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs
-  DEPENDS EIGEN3 PCL Ceres 
+  DEPENDS EIGEN3 PCL GTSAM
   INCLUDE_DIRS include
 )
 
