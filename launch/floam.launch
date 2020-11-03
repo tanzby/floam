@@ -2,19 +2,19 @@
 <launch>
 
     
-    <node pkg="rosbag" type="play" name="rosbag_play" args="--clock $(env HOME)/Downloads/2011_09_30_0018.bag"/> 
+    <node pkg="rosbag" type="play" name="rosbag_play" args="--clock XX.bag /rslidar_points:=/velodyne_points"/>
 
-    <!-- For Velodyne VLP-16 
+    <!-- For Velodyne VLP-16 -->
     <param name="scan_line" value="16" />
-    -->
+
 
     <!-- For Velodyne HDL-32 
     <param name="scan_line" value="32" />
     -->
 
-    <!-- For Velodyne HDL-64 -->
+    <!-- For Velodyne HDL-64
     <param name="scan_line" value="64" />
-
+    -->
 
     <!--- Sim Time -->
     <param name="/use_sim_time" value="true" />
@@ -22,12 +22,16 @@
     <param name="vertical_angle" type="double" value="2.0" />
     <param name="max_dis" type="double" value="90.0" />
     <param name="min_dis" type="double" value="3.0" />
+    <param name="map_resolution" type="double" value="0.1"/>
 
     <!--- -->
+    <!-- launch-prefix="xterm -e gdb &#45;&#45;args"-->
     <node pkg="floam" type="floam_odom_estimation_node" name="floam_odom_estimation_node" output="screen"/>
     <node pkg="floam" type="floam_laser_processing_node" name="floam_laser_processing_node" output="screen"/>
-    
+    <node pkg="floam" type="floam_laser_mapping_node" name="floam_laser_mapping_node" output="screen"/>
+
     <node pkg="tf" type="static_transform_publisher" name="word2map_tf"  args="0 0 0 0 0 0 /world /map 10" />
+    <node pkg="tf" type="static_transform_publisher" name="vel2rs_tf"  args="0 0 0 0 0 0 /base_link /rslidar  10" />
     <arg name="rviz" default="true" />
     <group if="$(arg rviz)">
         <node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find floam)/rviz/floam.rviz" />

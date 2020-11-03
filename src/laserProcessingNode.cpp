@@ -103,7 +103,7 @@ void laser_processing(){
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "main");
+    ros::init(argc, argv, "floam_laser_processing_node");
     ros::NodeHandle nh;
 
     int scan_line = 64;

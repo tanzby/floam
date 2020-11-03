@@ -88,7 +88,7 @@ void laser_mapping(){
             sensor_msgs::PointCloud2 PointsMsg;
             pcl::toROSMsg(*pc_map, PointsMsg);
             PointsMsg.header.stamp = pointcloud_time;
-            PointsMsg.header.frame_id = "/map";
+            PointsMsg.header.frame_id = "map";
             map_pub.publish(PointsMsg); 
             
 
@@ -102,7 +102,7 @@ void laser_mapping(){
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "main");
+    ros::init(argc, argv, "floam_laser_mapping_node");
     ros::NodeHandle nh;
 
     int scan_line = 64;

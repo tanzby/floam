@@ -29,6 +29,7 @@
     <node pkg="floam" type="floam_laser_mapping_node" name="floam_laser_mapping_node" output="screen"/>
 
     <node pkg="tf" type="static_transform_publisher" name="word2map_tf"  args="0 0 0 0 0 0 /world /map 10" />
+    <node pkg="tf" type="static_transform_publisher" name="vel2rs_tf"  args="0 0 0 0 0 0 /base_link /rslidar  10" />
     
     <arg name="rviz" default="true" />
     <group if="$(arg rviz)">

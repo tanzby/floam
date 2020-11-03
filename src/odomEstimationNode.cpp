@@ -114,7 +114,7 @@ void odom_estimation(){
 
 
 
-            Eigen::Quaterniond q_current(odomEstimation.odom.rotation());
+            Eigen::Quaterniond q_current(odomEstimation.odom.rotation().toQuaternion());
             //q_current.normalize();
             Eigen::Vector3d t_current = odomEstimation.odom.translation();
 
@@ -127,8 +127,8 @@ void odom_estimation(){
 
             // publish odometry
             nav_msgs::Odometry laserOdometry;
-            laserOdometry.header.frame_id = "/map"; 
-            laserOdometry.child_frame_id = "/base_link"; 
+            laserOdometry.header.frame_id = "/map";
+            laserOdometry.child_frame_id = "/base_link";
             laserOdometry.header.stamp = pointcloud_time;
             laserOdometry.pose.pose.orientation.x = q_current.x();
             laserOdometry.pose.pose.orientation.y = q_current.y();
@@ -148,7 +148,7 @@ void odom_estimation(){
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "main");
+    ros::init(argc, argv, "floam_odom_estimation_node");
     ros::NodeHandle nh;
 
     int scan_line = 64;
@@ -157,7 +157,7 @@ int main(int argc, char **argv)
     double max_dis = 60.0;
     double min_dis = 2.0;
     double map_resolution = 0.4;
-    nh.getParam("/scan_period", scan_period); 
+    nh.getParam("/scan_period", scan_period);
     nh.getParam("/vertical_angle", vertical_angle); 
     nh.getParam("/max_dis", max_dis);
     nh.getParam("/min_dis", min_dis);

@@ -1,6 +1,7 @@
 // Author of FLOAM: Wang Han 
 // Email wh200720041@gmail.com
 // Homepage https://wanghan.pro
+#include <fstream>
 
 #include "odomEstimationClass.h"
 
@@ -17,9 +18,25 @@ void OdomEstimationClass::init(lidar::Lidar lidar_param, double map_resolution){
     kdtreeEdgeMap = pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr(new pcl::KdTreeFLANN<pcl::PointXYZI>());
     kdtreeSurfMap = pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr(new pcl::KdTreeFLANN<pcl::PointXYZI>());
 
-    odom = Eigen::Isometry3d::Identity();
-    last_odom = Eigen::Isometry3d::Identity();
+    odom = gtsam::Pose3::identity();
+    last_odom = gtsam::Pose3::identity();
     optimization_count=2;
+
+    // define noise models
+    using namespace gtsam::noiseModel;
+
+//    pose_noise_model_plane = Robust::Create(
+//        mEstimator::Huber::Create(1.345),
+//        Diagonal::Sigmas(gtsam::Vector1(1.0))
+//    );
+//
+//    pose_noise_model_edge = Robust::Create(
+//        mEstimator::Huber::Create(4.6851),
+//        Diagonal::Sigmas(gtsam::Vector3(1.0, 1.0, 1.0))
+//    );
+
+    pose_noise_model_plane = Diagonal::Sigmas(gtsam::Vector1(0.5));
+    pose_noise_model_edge  = Diagonal::Sigmas(gtsam::Vector3(0.5, 0.5, 0.5));
 }
 
 void OdomEstimationClass::initMapWithPoints(const pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_in){
@@ -34,56 +51,63 @@ void OdomEstimationClass::updatePointsToMap(const pcl::PointCloud<pcl::PointXYZI
     if(optimization_count>2)
         optimization_count--;
 
-    Eigen::Isometry3d odom_prediction = odom * (last_odom.inverse() * odom);
+    gtsam::Pose3 odom_prediction = odom * (last_odom.inverse() * odom);
     last_odom = odom;
     odom = odom_prediction;
 
-    q_w_curr = Eigen::Quaterniond(odom.rotation());
-    t_w_curr = odom.translation();
+    // 'pose_w_c' to be optimize
+    pose_w_c = odom;
 
     pcl::PointCloud<pcl::PointXYZI>::Ptr downsampledEdgeCloud(new pcl::PointCloud<pcl::PointXYZI>());
     pcl::PointCloud<pcl::PointXYZI>::Ptr downsampledSurfCloud(new pcl::PointCloud<pcl::PointXYZI>());
     downSamplingToMap(edge_in,downsampledEdgeCloud,surf_in,downsampledSurfCloud);
-    //ROS_WARN("point nyum%d,%d",(int)downsampledEdgeCloud->points.size(), (int)downsampledSurfCloud->points.size());
-    if(laserCloudCornerMap->points.size()>10 && laserCloudSurfMap->points.size()>50){
+
+    const auto state_key = X(0);
+
+    if(laserCloudCornerMap->points.size()>10 && laserCloudSurfMap->points.size()>50)
+    {
         kdtreeEdgeMap->setInputCloud(laserCloudCornerMap);
         kdtreeSurfMap->setInputCloud(laserCloudSurfMap);
 
-        for (int iterCount = 0; iterCount < optimization_count; iterCount++){
-            ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
-            ceres::Problem::Options problem_options;
-            ceres::Problem problem(problem_options);
+        for (int iterCount = 0; iterCount < optimization_count; iterCount++)
+        {
+            gtsam::NonlinearFactorGraph factors;
+            gtsam::Values init_values;
 
-            problem.AddParameterBlock(parameters, 7, new PoseSE3Parameterization());
-            
-            addEdgeCostFactor(downsampledEdgeCloud,laserCloudCornerMap,problem,loss_function);
-            addSurfCostFactor(downsampledSurfCloud,laserCloudSurfMap,problem,loss_function);
+            // 'pose_w_c' to be optimize
+            init_values.insert(state_key, pose_w_c);
 
-            ceres::Solver::Options options;
-            options.linear_solver_type = ceres::DENSE_QR;
-            options.max_num_iterations = 4;
-            options.minimizer_progress_to_stdout = false;
-            options.check_gradients = false;
-            options.gradient_check_relative_precision = 1e-4;
-            ceres::Solver::Summary summary;
+            addEdgeCostFactor(downsampledEdgeCloud, laserCloudCornerMap, factors, init_values);
+            addSurfCostFactor(downsampledSurfCloud, laserCloudSurfMap, factors, init_values);
 
-            ceres::Solve(options, &problem, &summary);
+            // std::ofstream out_graph("/home/iceytan/floam_graph.dot");
+            // factors.saveGraph(out_graph, init_values);
 
+            gtsam::LevenbergMarquardtParams params;
+            params.verbosity = gtsam::LevenbergMarquardtParams::Verbosity::SILENT;
+            params.maxIterations = 10;
+
+            // solve
+            auto result = gtsam::LevenbergMarquardtOptimizer(factors, init_values, params).optimize();
+
+
+            // write result
+            pose_w_c = result.at<gtsam::Pose3>(state_key);
+            // result.print("optimize result:\n");
+            // exit(0);
         }
     }else{
         printf("not enough points in map to associate, map error");
     }
-    odom = Eigen::Isometry3d::Identity();
-    odom.linear() = q_w_curr.toRotationMatrix();
-    odom.translation() = t_w_curr;
-    addPointsToMap(downsampledEdgeCloud,downsampledSurfCloud);
+    odom = pose_w_c;
+    addPointsToMap(downsampledEdgeCloud, downsampledSurfCloud);
 
 }
 
 void OdomEstimationClass::pointAssociateToMap(pcl::PointXYZI const *const pi, pcl::PointXYZI *const po)
 {
-    Eigen::Vector3d point_curr(pi->x, pi->y, pi->z);
-    Eigen::Vector3d point_w = q_w_curr * point_curr + t_w_curr;
+    Eigen::Vector3d point_curr (pi->x, pi->y, pi->z);
+    Eigen::Vector3d point_w = pose_w_c * point_curr;
     po->x = point_w.x();
     po->y = point_w.y();
     po->z = point_w.z();
@@ -98,7 +122,12 @@ void OdomEstimationClass::downSamplingToMap(const pcl::PointCloud<pcl::PointXYZI
     downSizeFilterSurf.filter(*surf_pc_out);    
 }
 
-void OdomEstimationClass::addEdgeCostFactor(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in, ceres::Problem& problem, ceres::LossFunction *loss_function){
+void OdomEstimationClass::addEdgeCostFactor(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in,
+    gtsam::NonlinearFactorGraph& factors,
+    gtsam::Values& values)
+{
     int corner_num=0;
     for (int i = 0; i < (int)pc_in->points.size(); i++)
     {
@@ -140,8 +169,9 @@ void OdomEstimationClass::addEdgeCostFactor(const pcl::PointCloud<pcl::PointXYZI
                 point_a = 0.1 * unit_direction + point_on_line;
                 point_b = -0.1 * unit_direction + point_on_line;
 
-                ceres::CostFunction *cost_function = new EdgeAnalyticCostFunction(curr_point, point_a, point_b);  
-                problem.AddResidualBlock(cost_function, loss_function, parameters);
+                factors.emplace_shared<gtsam::PointToEdgeFactor>(
+                        X(0), curr_point, point_a, point_b, pose_noise_model_edge);
+
                 corner_num++;   
             }                           
         }
@@ -152,7 +182,12 @@ void OdomEstimationClass::addEdgeCostFactor(const pcl::PointCloud<pcl::PointXYZI
 
 }
 
-void OdomEstimationClass::addSurfCostFactor(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in, ceres::Problem& problem, ceres::LossFunction *loss_function){
+void OdomEstimationClass::addSurfCostFactor(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in,
+    gtsam::NonlinearFactorGraph& factors,
+    gtsam::Values& values)
+{
     int surf_num=0;
     for (int i = 0; i < (int)pc_in->points.size(); i++)
     {
@@ -193,9 +228,8 @@ void OdomEstimationClass::addSurfCostFactor(const pcl::PointCloud<pcl::PointXYZI
             Eigen::Vector3d curr_point(pc_in->points[i].x, pc_in->points[i].y, pc_in->points[i].z);
             if (planeValid)
             {
-                ceres::CostFunction *cost_function = new SurfNormAnalyticCostFunction(curr_point, norm, negative_OA_dot_norm);    
-                problem.AddResidualBlock(cost_function, loss_function, parameters);
-
+                factors.emplace_shared<gtsam::PointToPlaneFactor>(
+                        X(0), curr_point, norm, negative_OA_dot_norm, pose_noise_model_plane);
                 surf_num++;
             }
         }

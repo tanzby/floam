@@ -20,9 +20,11 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/crop_box.h>
 
-//ceres
-#include <ceres/ceres.h>
-#include <ceres/rotation.h>
+//gtsam
+#include <gtsam/inference/Symbol.h>
+#include <gtsam/nonlinear/LevenbergMarquardtOptimizer.h>
+#include <gtsam/nonlinear/NonlinearFactorGraph.h>
+#include <gtsam/geometry/Pose3.h>
 
 //eigen
 #include <Eigen/Dense>
@@ -30,11 +32,16 @@
 
 //LOCAL LIB
 #include "lidar.h"
-#include "lidarOptimization.h"
+#include "factors.h"
 #include <ros/ros.h>
 
-class OdomEstimationClass 
+using gtsam::symbol_shorthand::E; //  edge factor
+using gtsam::symbol_shorthand::P; // plane factor
+using gtsam::symbol_shorthand::X; // state
+
+class OdomEstimationClass
 {
+
 
     public:
     	OdomEstimationClass();
@@ -44,16 +51,16 @@ class OdomEstimationClass
 		void updatePointsToMap(const pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_in);
 		void getMap(pcl::PointCloud<pcl::PointXYZI>::Ptr& laserCloudMap);
 
-		Eigen::Isometry3d odom;
+		gtsam::Pose3 odom;
 		pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudCornerMap;
 		pcl::PointCloud<pcl::PointXYZI>::Ptr laserCloudSurfMap;
 	private:
 		//optimization variable
-		double parameters[7] = {0, 0, 0, 1, 0, 0, 0};
-		Eigen::Map<Eigen::Quaterniond> q_w_curr = Eigen::Map<Eigen::Quaterniond>(parameters);
-		Eigen::Map<Eigen::Vector3d> t_w_curr = Eigen::Map<Eigen::Vector3d>(parameters + 4);
+		gtsam::Pose3 pose_w_c;  // world to current
+        gtsam::Pose3 last_odom;
 
-		Eigen::Isometry3d last_odom;
+        gtsam::SharedNoiseModel pose_noise_model_edge;
+        gtsam::SharedNoiseModel pose_noise_model_plane;
 
 		//kd-tree
 		pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr kdtreeEdgeMap;
@@ -70,8 +77,18 @@ class OdomEstimationClass
 		int optimization_count;
 
 		//function
-		void addEdgeCostFactor(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in, ceres::Problem& problem, ceres::LossFunction *loss_function);
-		void addSurfCostFactor(const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in, ceres::Problem& problem, ceres::LossFunction *loss_function);
+		void addEdgeCostFactor(
+            const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+            const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in,
+            gtsam::NonlinearFactorGraph& factors,
+            gtsam::Values& initial_values);
+
+		void addSurfCostFactor(
+            const pcl::PointCloud<pcl::PointXYZI>::Ptr& pc_in,
+            const pcl::PointCloud<pcl::PointXYZI>::Ptr& map_in,
+            gtsam::NonlinearFactorGraph& factors,
+            gtsam::Values& initial_values);
+
 		void addPointsToMap(const pcl::PointCloud<pcl::PointXYZI>::Ptr& downsampledEdgeCloud, const pcl::PointCloud<pcl::PointXYZI>::Ptr& downsampledSurfCloud);
 		void pointAssociateToMap(pcl::PointXYZI const *const pi, pcl::PointXYZI *const po);
 		void downSamplingToMap(const pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_pc_in, pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_pc_out, const pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_pc_in, pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_pc_out);
