@@ -1,7 +1,3 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
-
 //c++ lib
 #include <cmath>
 #include <vector>
@@ -49,7 +45,7 @@ double total_time =0;
 int total_frame=0;
 
 void laser_processing(){
-    while(1){
+    while (ros::ok()){
         if(!pointCloudBuf.empty()){
             //read data
             mutex_lock.lock();

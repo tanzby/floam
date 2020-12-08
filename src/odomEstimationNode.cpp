@@ -1,6 +1,4 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
+
 
 //c++ lib
 #include <cmath>
@@ -57,7 +55,7 @@ bool is_odom_inited = false;
 double total_time =0;
 int total_frame=0;
 void odom_estimation(){
-    while(1){
+    while (ros::ok()){
         if(!pointCloudEdgeBuf.empty() && !pointCloudSurfBuf.empty()&& !pointCloudBuf.empty()){
 
             //read data
@@ -112,10 +110,7 @@ void odom_estimation(){
                 ROS_INFO("average odom estimation time %f ms \n \n", total_time/total_frame);
             }
 
-
-
             Eigen::Quaterniond q_current(odomEstimation.odom.rotation().toQuaternion());
-            //q_current.normalize();
             Eigen::Vector3d t_current = odomEstimation.odom.translation();
 
             static tf::TransformBroadcaster br;

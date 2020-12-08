@@ -1,9 +1,13 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(floam)
 
-#set(CMAKE_BUILD_TYPE "Release")
-set(CMAKE_CXX_FLAGS "-std=c++17")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
+if (NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif ()
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -g")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast")
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
@@ -17,17 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   eigen_conversions
 )
 
-find_package(Eigen3)
-if(NOT EIGEN3_FOUND)
-  # Fallback to cmake_modules
-  find_package(cmake_modules REQUIRED)
-  find_package(Eigen REQUIRED)
-  set(EIGEN3_INCLUDE_DIRS ${EIGEN_INCLUDE_DIRS})
-  set(EIGEN3_LIBRARIES ${EIGEN_LIBRARIES})  # Not strictly necessary as Eigen is head only
-  # Possibly map additional variables to the EIGEN3_ prefix.
-else()
-  set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
-endif()
+find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(GTSAM REQUIRED)
 
@@ -66,5 +60,3 @@ target_link_libraries(floam_odom_estimation_node  ${PROJECT_NAME})
 
 add_executable(floam_laser_mapping_node src/laserMappingNode.cpp)
 target_link_libraries(floam_laser_mapping_node  ${PROJECT_NAME})
-
-add_subdirectory(test)

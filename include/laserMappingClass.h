@@ -1,9 +1,4 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
-
-#ifndef _LASER_MAPPING_H_
-#define _LASER_MAPPING_H_
+#pragma once
 
 //PCL lib
 #include <pcl/point_cloud.h>
@@ -61,7 +56,3 @@ class LaserMappingClass
 		void checkPoints(int& x, int& y, int& z);
 
 };
-
-
-#endif // _LASER_MAPPING_H_
-

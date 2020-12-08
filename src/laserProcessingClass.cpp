@@ -1,6 +1,3 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
 #include "laserProcessingClass.h"
 
 void LaserProcessingClass::init(lidar::Lidar lidar_param_in){
@@ -216,9 +213,4 @@ LaserProcessingClass::LaserProcessingClass(){
 Double2d::Double2d(int id_in, double value_in){
     id = id_in;
     value =value_in;
-};
-
-PointsInfo::PointsInfo(int layer_in, double time_in){
-    layer = layer_in;
-    time = time_in;
 };

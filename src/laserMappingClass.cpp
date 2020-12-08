@@ -1,7 +1,3 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
-
 #include "laserMappingClass.h"
 
 void LaserMappingClass::init(double map_resolution){

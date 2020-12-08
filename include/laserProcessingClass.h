@@ -1,8 +1,4 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
-#ifndef _LASER_PROCESSING_CLASS_H_
-#define _LASER_PROCESSING_CLASS_H_
+#pragma once
 
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -22,14 +18,6 @@ public:
 	double value;
 	Double2d(int id_in, double value_in);
 };
-//points info class
-class PointsInfo{
-public:
-	int layer;
-	double time;
-	PointsInfo(int layer_in, double time_in);
-};
-
 
 class LaserProcessingClass 
 {
@@ -41,8 +29,3 @@ class LaserProcessingClass
 	private:
      	lidar::Lidar lidar_param;
 };
-
-
-
-#endif // _LASER_PROCESSING_CLASS_H_
-

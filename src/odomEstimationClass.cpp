@@ -1,6 +1,3 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
 #include <fstream>
 
 #include "odomEstimationClass.h"
@@ -12,7 +9,7 @@ void OdomEstimationClass::init(lidar::Lidar lidar_param, double map_resolution){
 
     //downsampling size
     downSizeFilterEdge.setLeafSize(map_resolution, map_resolution, map_resolution);
-    downSizeFilterSurf.setLeafSize(map_resolution * 2, map_resolution * 2, map_resolution * 2);
+    downSizeFilterSurf.setLeafSize(map_resolution * 1.5, map_resolution * 1.5, map_resolution * 1.5);
 
     //kd-tree
     kdtreeEdgeMap = pcl::KdTreeFLANN<pcl::PointXYZI>::Ptr(new pcl::KdTreeFLANN<pcl::PointXYZI>());
@@ -23,20 +20,12 @@ void OdomEstimationClass::init(lidar::Lidar lidar_param, double map_resolution){
     optimization_count=2;
 
     // define noise models
-    using namespace gtsam::noiseModel;
 
-//    pose_noise_model_plane = Robust::Create(
-//        mEstimator::Huber::Create(1.345),
-//        Diagonal::Sigmas(gtsam::Vector1(1.0))
-//    );
-//
-//    pose_noise_model_edge = Robust::Create(
-//        mEstimator::Huber::Create(4.6851),
-//        Diagonal::Sigmas(gtsam::Vector3(1.0, 1.0, 1.0))
-//    );
+    auto edge_gaussian_model = gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(3) << 1e-1, 1e-1, 1e-1).finished());
+    auto surf_gaussian_model =  gtsam::noiseModel::Diagonal::Variances((gtsam::Vector(1) << 1e-2).finished());
 
-    pose_noise_model_plane = Diagonal::Sigmas(gtsam::Vector1(0.5));
-    pose_noise_model_edge  = Diagonal::Sigmas(gtsam::Vector3(0.5, 0.5, 0.5));
+    pose_noise_model_plane = gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(0.02), surf_gaussian_model);
+    pose_noise_model_edge = gtsam::noiseModel::Robust::Create(gtsam::noiseModel::mEstimator::Huber::Create(0.58), edge_gaussian_model);
 }
 
 void OdomEstimationClass::initMapWithPoints(const pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_in, const pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_in){
@@ -74,14 +63,10 @@ void OdomEstimationClass::updatePointsToMap(const pcl::PointCloud<pcl::PointXYZI
             gtsam::NonlinearFactorGraph factors;
             gtsam::Values init_values;
 
-            // 'pose_w_c' to be optimize
             init_values.insert(state_key, pose_w_c);
 
             addEdgeCostFactor(downsampledEdgeCloud, laserCloudCornerMap, factors, init_values);
             addSurfCostFactor(downsampledSurfCloud, laserCloudSurfMap, factors, init_values);
-
-            // std::ofstream out_graph("/home/iceytan/floam_graph.dot");
-            // factors.saveGraph(out_graph, init_values);
 
             gtsam::LevenbergMarquardtParams params;
             params.verbosity = gtsam::LevenbergMarquardtParams::Verbosity::SILENT;
@@ -90,11 +75,8 @@ void OdomEstimationClass::updatePointsToMap(const pcl::PointCloud<pcl::PointXYZI
             // solve
             auto result = gtsam::LevenbergMarquardtOptimizer(factors, init_values, params).optimize();
 
-
-            // write result
             pose_w_c = result.at<gtsam::Pose3>(state_key);
-            // result.print("optimize result:\n");
-            // exit(0);
+            pose_w_c = gtsam::Pose3(pose_w_c.rotation().normalized(), pose_w_c.translation());
         }
     }else{
         printf("not enough points in map to associate, map error");

@@ -1,8 +1,4 @@
-// Author of FLOAM: Wang Han 
-// Email wh200720041@gmail.com
-// Homepage https://wanghan.pro
-#ifndef _ODOM_ESTIMATION_CLASS_H_
-#define _ODOM_ESTIMATION_CLASS_H_
+#pragma once
 
 //std lib
 #include <string>
@@ -35,7 +31,7 @@
 #include "factors.h"
 #include <ros/ros.h>
 
-using gtsam::symbol_shorthand::E; //  edge factor
+using gtsam::symbol_shorthand::E; // edge factor
 using gtsam::symbol_shorthand::P; // plane factor
 using gtsam::symbol_shorthand::X; // state
 
@@ -93,6 +89,3 @@ class OdomEstimationClass
 		void pointAssociateToMap(pcl::PointXYZI const *const pi, pcl::PointXYZI *const po);
 		void downSamplingToMap(const pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_pc_in, pcl::PointCloud<pcl::PointXYZI>::Ptr& edge_pc_out, const pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_pc_in, pcl::PointCloud<pcl::PointXYZI>::Ptr& surf_pc_out);
 };
-
-#endif // _ODOM_ESTIMATION_CLASS_H_
-
