@@ -87,10 +87,7 @@ void laser_mapping(){
             pcl::toROSMsg(*pc_map, PointsMsg);
             PointsMsg.header.stamp = pointcloud_time;
             PointsMsg.header.frame_id = "map";
-            map_pub.publish(PointsMsg); 
-            
-
-
+            map_pub.publish(PointsMsg);
         }
         //sleep 2 ms every time
         std::chrono::milliseconds dura(2);
